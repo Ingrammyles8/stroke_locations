@@ -142,6 +142,44 @@ def update_locations():
         _save_master_list(current)
 
 
+def get_locations_from_addresses():
+    '''
+    Use google maps to find coordinates for any hospitals that have a 'Name'
+    and 'Address' but no 'Latitude' or 'Longitude'.
+    Uses only Address column, so this should contain all available
+        information (specifically city and state should be included as part
+        of the address).
+    '''
+    current = master_list()
+
+    info_cols = ['Name', 'Address']
+    loc_cols = ['Latitude', 'Longitude']
+    has_info = current[info_cols].notnull().all(axis=1)
+    no_loc = current[loc_cols].isnull().all(axis=1)
+    to_update = current[has_info & no_loc & ~current.Failed_Lookup].index
+
+    if to_update.empty:
+        print('No locations to update')
+        return
+
+    client = maps.get_client()
+    for i in tqdm(to_update, desc='Getting Locations'):
+        address = current.Address[i]
+
+        results = maps.get_address_coordinates(address, client)
+
+        if not results:
+            tqdm.write(f"Found no results for {i}: '{address}'")
+            current.loc[i, 'Failed_Lookup'] = True
+        else:
+            current.loc[i, 'Latitude'] = results['Latitude']
+            current.loc[i, 'Longitude'] = results['Longitude']
+            current.loc[i, 'Failed_Lookup'] = False
+
+        # save after each iteration to minimize data loss on crash/cancel
+        _save_master_list(current)
+
+
 def update_transfer_destinations():
     '''
     Use google maps to find transfer destinations for all primary hospitals

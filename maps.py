@@ -79,6 +79,26 @@ def get_hospital_location(searchterm, client=None):
     return out
 
 
+def get_address_coordinates(address, client=None):
+    '''
+    Use the Google Geocoding API to get the coordinates for a given address.
+    '''
+    if client is None:
+        client = get_client()
+
+    results = client.geocode(address)
+
+    if not results:
+        return {}
+
+    location = results[0]['geometry']['location']
+    out = {}
+    out['Latitude'] = location['lat']
+    out['Longitude'] = location['lng']
+
+    return out
+
+
 def get_transfer_destination(location, candidates, client=None):
     '''
     Given the location of a primary center and a dataframe of distances to
